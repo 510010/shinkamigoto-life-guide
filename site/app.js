@@ -75,7 +75,7 @@ function renderGomi() {
   const strip = h => {
     if (!h) return '';
     let cells = '';
-    for (let i = 1; i <= 7; i++) {
+    for (let i = 1; i <= 5; i++) {
       const d2 = new Date(); d2.setDate(d2.getDate() + i);
       const ids = DATA.events[h.version][dstr(d2)] || [];
       cells += '<div class="wk-cell"><div class="wk-d">' + (d2.getMonth() + 1) + '/' + d2.getDate() +
@@ -193,11 +193,15 @@ function renderClinics() {
   const hospitals = DATA.facilities.filter(f => (f.kind === '病院' || f.kind === '医療センター') && !favIds.includes(f.facility_id));
   const list = byRank(DATA.facilities.filter(f => !(f.kind === '病院' || f.kind === '医療センター') &&
     !favIds.includes(f.facility_id) && (!district || f.district === district)));
+  const fold = favs.length > 0;
+  const sec = (title, body) => fold
+    ? '<details class="foldsec"><summary class="subhead">' + title + '</summary>' + body + '</details>'
+    : '<div class="subhead">' + title + '</div>' + body;
   $('#clinicBody').innerHTML =
     (favs.length ? '<div class="subhead">かかりつけ</div>' + favs.map(f => facilityCard(f, d)).join('') : '') +
-    '<div class="subhead">病院・医療センター（町全域）</div>' + hospitals.map(f => facilityCard(f, d)).join('') +
-    '<div class="subhead">' + (district ? district + '地区の診療所' : '診療所（全地区）') + '</div>' +
-    (list.length ? list.map(f => facilityCard(f, d)).join('') : '<p class="small">この地区の施設データがありません。</p>') +
+    sec('病院・医療センター（町全域）', hospitals.map(f => facilityCard(f, d)).join('')) +
+    sec(district ? district + '地区の診療所' : '診療所（全地区）',
+        list.length ? list.map(f => facilityCard(f, d)).join('') : '<p class="small">この地区の施設データがありません。</p>') +
     (favs.length ? '' : '<p class="small">カードの ☆ を押すか、設定で「かかりつけ」を選ぶと、その施設が常にここへ出ます。</p>');
   document.querySelectorAll('[data-fav]').forEach(btn => btn.addEventListener('click', () => {
     const id = btn.dataset.fav;
@@ -310,6 +314,14 @@ function settingsFormHTML() {
     favHtml +
     '<button id="saveSettings" class="primary">保存する</button>';
 }
+let savedTimer = null;
+function showSavedNote() {
+  const el = $('#savedNote');
+  if (!el) return;
+  el.textContent = '保存しました ✓';
+  clearTimeout(savedTimer);
+  savedTimer = setTimeout(() => { el.textContent = ''; }, 3000);
+}
 function bindSettings(scope) {
   const btn = scope.querySelector('#saveSettings');
   if (!btn) return;
@@ -320,15 +332,21 @@ function bindSettings(scope) {
       favs: [...scope.querySelectorAll('input[name="favClinic"]:checked')].map(x => x.value),
     };
     localStorage.setItem('lg-settings', JSON.stringify(settings));
+    if (scope.id === 'settingsPanel') scope.hidden = true;
     renderAll();
+    showSavedNote();
   });
 }
 function renderChips() {
   const home = hamletOf(settings && settings.home);
   const par = hamletOf(settings && settings.parents);
+  const favNames = ((settings && settings.favs) || [])
+    .map(id => (DATA.facilities.find(f => f.facility_id === id) || {}).name).filter(Boolean);
   $('#settingChips').innerHTML =
     (home ? '<span class="chip">自宅 <b>' + home.district + '・' + home.hamlet + '（' + home.version + '版）</b></span>' : '') +
-    (par ? '<span class="chip">実家 <b>' + par.district + '・' + par.hamlet + '（' + par.version + '版）</b></span>' : '');
+    (par ? '<span class="chip">実家 <b>' + par.district + '・' + par.hamlet + '（' + par.version + '版）</b></span>' : '') +
+    (favNames.length ? '<span class="chip">かかりつけ <b>' + favNames.slice(0, 3).join('・') +
+      (favNames.length > 3 ? ' ほか' + (favNames.length - 3) + '件' : '') + '</b></span>' : '');
   $('#setupCard').hidden = !!home;
   if (!home) { $('#setupForm').innerHTML = settingsFormHTML(); bindSettings($('#setupForm')); }
 }
