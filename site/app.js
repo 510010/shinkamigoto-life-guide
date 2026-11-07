@@ -142,7 +142,7 @@ function renderFerries() {
     return h;
   };
   $('#ferryBody').innerHTML =
-    '<p class="small">' + md + ' の状況（' + cap + ' 時点の公式発表から自動取得）</p>' +
+    '<p class="small"><span class="tag" style="background:#ef6c00">試験表示</span> ' + md + ' の状況（' + cap + ' 時点の公式発表から自動取得。試験中のため公式発表と異なる場合があります）</p>' +
     line('九州商船', ss.kyushu, c =>
       '<div class="cancel-row">✕ ' + c.route + '｜' + c.vessel + ' ' + c.port + ' ' + c.time + ' 発' +
       (c.reason ? '（' + c.reason + '）' : '') + '</div>') +
