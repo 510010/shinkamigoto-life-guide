@@ -189,19 +189,20 @@ function renderClinics() {
   const rank = f => clinicStatus(f, d).open === true ? 0 : clinicStatus(f, d).open === false ? 2 : 1;
   const byRank = arr => arr.slice().sort((a, b) => rank(a) - rank(b));
   const favs = byRank(DATA.facilities.filter(f => favIds.includes(f.facility_id)));
-  // hospitals / medical centers serve the whole town: always shown
-  const hospitals = DATA.facilities.filter(f => (f.kind === '病院' || f.kind === '医療センター') && !favIds.includes(f.facility_id));
-  const list = byRank(DATA.facilities.filter(f => !(f.kind === '病院' || f.kind === '医療センター') &&
-    !favIds.includes(f.facility_id) && (!district || f.district === district)));
+  const isHosp = f => f.kind === '病院' || f.kind === '医療センター';
+  const isDent = f => f.kind.startsWith('歯科');
+  const groups = [
+    { title: '病院・医療センター', list: byRank(DATA.facilities.filter(f => isHosp(f) && !favIds.includes(f.facility_id))) },
+    { title: '診療所', list: byRank(DATA.facilities.filter(f => !isHosp(f) && !isDent(f) && !favIds.includes(f.facility_id))) },
+    { title: '歯科医', list: byRank(DATA.facilities.filter(f => isDent(f) && !favIds.includes(f.facility_id))) },
+  ];
   const fold = favs.length > 0;
   const sec = (title, body) => fold
     ? '<details class="foldsec"><summary class="subhead">' + title + '</summary>' + body + '</details>'
     : '<div class="subhead">' + title + '</div>' + body;
   $('#clinicBody').innerHTML =
     (favs.length ? '<div class="subhead">かかりつけ</div>' + favs.map(f => facilityCard(f, d)).join('') : '') +
-    sec('病院・医療センター（町全域）', hospitals.map(f => facilityCard(f, d)).join('')) +
-    sec(district ? district + '地区の診療所' : '診療所（全地区）',
-        list.length ? list.map(f => facilityCard(f, d)).join('') : '<p class="small">この地区の施設データがありません。</p>') +
+    groups.map(g => sec(g.title, g.list.map(f => facilityCard(f, d)).join(''))).join('') +
     (favs.length ? '' : '<p class="small">カードの ☆ を押すか、設定で「かかりつけ」を選ぶと、その施設が常にここへ出ます。</p>');
   document.querySelectorAll('[data-fav]').forEach(btn => btn.addEventListener('click', () => {
     const id = btn.dataset.fav;
@@ -300,15 +301,10 @@ function settingsFormHTML() {
         '<label class="favitem"><input type="checkbox" name="favClinic" value="' + f.facility_id + '"' +
         (favs.includes(f.facility_id) ? ' checked' : '') + '> ' + f.name + '</label>').join('') + '</div>'
     : '';
-  const hosp = DATA.facilities.filter(f => f.kind === '病院' || f.kind === '医療センター');
-  const byDist = {};
-  for (const f of DATA.facilities) {
-    if (f.kind === '病院' || f.kind === '医療センター') continue;
-    (byDist[f.district] = byDist[f.district] || []).push(f);
-  }
   const favHtml = '<fieldset class="favset"><legend>かかりつけの診療所（常に表示されます）</legend>' +
-    favBox('病院・医療センター', hosp) +
-    Object.entries(byDist).map(([dist, arr]) => favBox(dist + '地区', arr)).join('') + '</fieldset>';
+    favBox('病院・医療センター', DATA.facilities.filter(f => f.kind === '病院' || f.kind === '医療センター')) +
+    favBox('診療所', DATA.facilities.filter(f => f.kind === '診療所' || f.kind === 'へき地診療所')) +
+    favBox('歯科医', DATA.facilities.filter(f => f.kind.startsWith('歯科'))) + '</fieldset>';
   return '<label>自宅の集落<select id="setHome"><option value="">選択してください</option>' + opts(s.home) + '</select></label>' +
     '<label>実家の集落（任意）<select id="setParents"><option value="">なし</option>' + opts(s.parents) + '</select></label>' +
     favHtml +
