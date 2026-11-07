@@ -47,7 +47,7 @@ function renderGomi() {
     const cats = ids.map(id => ({ id, ...DATA.categories[id] }));
     const rare = cats.some(c => c.rare);
     const body = cats.length
-      ? cats.map(c => '<span class="gomi-item' + (c.rare ? ' rare-item' : '') + '" style="border-left:6px solid ' +
+      ? cats.map(c => '<span class="gomi-item tap' + (c.rare ? ' rare-item' : '') + '" data-cat="' + c.id + '" data-panel="bagInfoToday" style="border-left:6px solid ' +
           (CAT_COLORS[c.id] || '#999') + '">' + c.name + '</span>').join(' ')
       : '<span class="none">収集なし</span>';
     return '<div class="gomi-row' + (rare ? ' rare-row' : '') + '"><span class="tag">' + label + ' ' + h.version + '版</span>' + body + '</div>';
@@ -65,7 +65,7 @@ function renderGomi() {
       if (!nd) continue;
       const n = daysUntil(nd, today);
       const label = DATA.categories[cid].name;
-      cd.push('<div class="cd"><div class="n">' + (n === 0 ? '今日' : n + '日') + '</div><div class="l">' +
+      cd.push('<div class="cd tap" data-cat="' + cid + '" data-panel="bagInfoRare" data-date="' + nd + '"><div class="n">' + (n === 0 ? '今日' : n + '日') + '</div><div class="l">' +
         label + '<br>' + nd.slice(5).replace('-', '/') + '</div></div>');
     }
   }
@@ -80,7 +80,7 @@ function renderGomi() {
       const ids = DATA.events[h.version][dstr(d2)] || [];
       cells += '<div class="wk-cell"><div class="wk-d">' + (d2.getMonth() + 1) + '/' + d2.getDate() +
         '<span class="wk-w">(' + WD[d2.getDay()] + ')</span></div>' +
-        (ids.length ? ids.map(id => '<div class="wk-c" style="border-left:4px solid ' + (CAT_COLORS[id] || '#999') + '">' +
+        (ids.length ? ids.map(id => '<div class="wk-c tap" data-cat="' + id + '" data-panel="bagInfoWeek" data-date="' + dstr(d2) + '" style="border-left:4px solid ' + (CAT_COLORS[id] || '#999') + '">' +
           (SHORT[id] || DATA.categories[id].name) + '</div>').join('')
                     : '<div class="wk-c none">なし</div>') + '</div>';
     }
@@ -90,6 +90,23 @@ function renderGomi() {
     ? '<div class="wk-label">自宅（' + home.version + '版）</div>' + strip(home) +
       (par ? '<div class="wk-label">実家（' + par.version + '版）</div>' + strip(par) : '')
     : '<p class="small">設定で自宅の集落を選んでください。</p>';
+  // tap a category -> show its bag / ticket rule in the panel under that block
+  document.querySelectorAll('#gomi .tap, #gomiToday .tap, .countdown .tap, #weekGomi .tap').forEach(el => {
+    el.addEventListener('click', () => {
+      const panel = document.getElementById(el.dataset.panel);
+      if (!panel) return;
+      const cat = DATA.categories[el.dataset.cat];
+      if (!cat) return;
+      const key = el.dataset.cat + '|' + (el.dataset.date || '');
+      if (panel.dataset.key === key && !panel.hidden) { panel.hidden = true; return; }
+      panel.dataset.key = key;
+      const when = el.dataset.date
+        ? '<span class="bagdate">' + el.dataset.date.slice(5).replace('-', '/') + '（' + WD[new Date(el.dataset.date + 'T00:00:00').getDay()] + '）の収集</span>'
+        : '';
+      panel.innerHTML = '<strong>' + cat.name + '</strong>' + when + '<br>出し方：' + cat.bag;
+      panel.hidden = false;
+    });
+  });
 }
 
 function clinicStatus(f, d) {

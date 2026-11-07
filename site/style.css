@@ -89,3 +89,8 @@ a { color: #1565c0; }
 .foldsec > summary::-webkit-details-marker { display: none; }
 .foldsec > summary::after { content: ' ▸'; color: #90a4ae; }
 .foldsec[open] > summary::after { content: ' ▾'; }
+
+.tap { cursor: pointer; }
+.tap:active { opacity: .6; }
+.baginfo { background: #eef4fb; border: 1px solid #c9d9ee; border-radius: 8px; padding: 8px 10px; margin-top: 8px; font-size: 14px; line-height: 1.5; }
+.baginfo .bagdate { color: #3366aa; font-weight: 600; margin-left: 6px; font-size: 13px; }
