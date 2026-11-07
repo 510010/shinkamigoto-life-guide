@@ -98,7 +98,8 @@ function clinicStatus(f, d) {
 function clinicRow(f, d) {
   const st = clinicStatus(f, d);
   return '<div class="clinic-row"><div><div class="fname">' + f.name + '</div>' +
-    '<div class="small">' + (f.departments || '') + '｜' + st.label + (f.hours_text ? '｜' + f.hours_text : '') + '</div></div>' +
+    '<div class="small">' + (f.departments || '') + '｜' + st.label + (f.hours_text ? '｜' + f.hours_text : '') +
+    (f.address ? '｜' + f.address.replace('長崎県南松浦郡新上五島町', '') : '') + '</div></div>' +
     (f.phone ? '<a class="phone" href="tel:' + f.phone.replace(/-/g, '') + '">' + f.phone + '</a>'
              : '<span class="small">' + (f.contact_note || '') + '</span>') + '</div>';
 }
