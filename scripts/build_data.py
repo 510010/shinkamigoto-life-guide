@@ -73,12 +73,39 @@ try:
 except FileNotFoundError:
     pass
 
+# --- ship operation status (today's latest capture, from route-guide history) ---
+HIST = os.path.expanduser('~/workspace/shinkamigoto-route-guide/history')
+ship_status = None
+try:
+    krows = rd(f'{HIST}/kyushu_results.csv')
+    caps = sorted({r['captured_at'] for r in krows if r['captured_at']})
+    if caps:
+        cap = caps[-1]
+        today_rows = [r for r in krows if r['captured_at'] == cap]
+        sdate = today_rows[0]['date']
+        cancelled = [{'route': r['route'], 'vessel': r['vessel'], 'port': r['port'],
+                      'time': r['time'], 'reason': r['reason']}
+                     for r in sorted(today_rows, key=lambda r: r['time']) if r['status'] == '✕']
+        undecided = sum(1 for r in today_rows if r['status'] == '△')
+        grows = [r for r in rd(f'{HIST}/goto_sangyo_results.csv') if r['date'] == sdate]
+        gcancel = [{'port': r['port'], 'time': r['time'], 'reason': r['reason']}
+                   for r in grows if r['status'] == '✕']
+        ship_status = {
+            'date': sdate, 'captured_at': cap,
+            'kyushu': {'total': len(today_rows), 'cancel': len(cancelled),
+                       'undecided': undecided, 'cancelled': cancelled},
+            'goto': {'total': len(grows), 'cancel': len(gcancel), 'cancelled': gcancel},
+        }
+except FileNotFoundError:
+    pass
+
 data = {
     'meta': {'generated_at': datetime.now(JST).strftime('%Y-%m-%d %H:%M JST'),
              'town': '新上五島町'},
     'hamlets': hamlets, 'categories': categories, 'events': events,
     'items': items, 'facilities': facilities,
     'ports': port_list, 'sailings': sailings, 'broadcasts': bcs,
+    'ship_status': ship_status,
 }
 os.makedirs(f'{ROOT}/site', exist_ok=True)
 with open(f'{ROOT}/site/data.json', 'w', encoding='utf-8') as f:

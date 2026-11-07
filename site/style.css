@@ -51,3 +51,11 @@ button.primary { background: #1565c0; color: #fff; border: none; border-radius: 
 .rules { font-size: 14px; line-height: 1.7; padding-left: 18px; margin: 6px 0; }
 footer { max-width: 640px; margin: 0 auto; padding: 4px 16px 24px; font-size: 11px; color: #7a8794; }
 a { color: #1565c0; }
+
+.subhead { font-weight: 700; margin: 10px 0 4px; color: #1565c0; }
+.status-row { padding: 6px 0; border-bottom: 1px solid #eee; }
+.tag.ok { background: #2e7d32; }
+.tag.ng { background: #c62828; }
+.cancel-row { padding: 3px 0 3px 14px; color: #b71c1c; font-size: 0.95em; }
+.tag.cat { color: #fff; }
+.gomi-item { border-radius: 4px; }

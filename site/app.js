@@ -5,6 +5,18 @@ let settings = JSON.parse(localStorage.getItem('lg-settings') || 'null');
 let dayOffset = 0;
 
 const WD = ['日', '月', '火', '水', '木', '金', '土'];
+// garbage category colors (shared hues between collection chips and search tags)
+const CAT_COLORS = {
+  burnable: '#c62828', nonburnable: '#1565c0', cans_bottles_pet: '#2e7d32',
+  cardboard_paper: '#9e9d24', hazardous: '#7b1fa2', foam_tray: '#ef6c00',
+  bulky_burnable: '#6d4c41',
+};
+const TABLE_COLORS = {
+  '燃やせるごみ': '#c62828', '燃やせないごみ': '#1565c0', '粗大不燃ごみ': '#455a64',
+  '粗大可燃ごみ': '#6d4c41', '缶・びん・ペットボトル': '#2e7d32', '有害ごみ': '#7b1fa2',
+  'トレー・発泡スチロール': '#ef6c00', '段ボール・新聞・チラシ': '#9e9d24',
+  '収集しないごみ': '#616161',
+};
 function dstr(d) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
@@ -31,10 +43,12 @@ function renderGomi() {
   let html = '';
   const block = (label, h) => {
     if (!h) return '';
-    const cats = (DATA.events[h.version][ds] || []).map(c => DATA.categories[c]);
+    const ids = DATA.events[h.version][ds] || [];
+    const cats = ids.map(id => ({ id, ...DATA.categories[id] }));
     const rare = cats.some(c => c.rare);
     const body = cats.length
-      ? cats.map(c => '<span class="gomi-item' + (c.rare ? ' rare-item' : '') + '">' + c.name + '</span>').join(' ')
+      ? cats.map(c => '<span class="gomi-item' + (c.rare ? ' rare-item' : '') + '" style="border-left:6px solid ' +
+          (CAT_COLORS[c.id] || '#999') + '">' + c.name + '</span>').join(' ')
       : '<span class="none">収集なし</span>';
     return '<div class="gomi-row' + (rare ? ' rare-row' : '') + '"><span class="tag">' + label + ' ' + h.version + '版</span>' + body + '</div>';
   };
@@ -81,41 +95,59 @@ function clinicStatus(f, d) {
   return { open: null, label: txt };
 }
 
+function clinicRow(f, d) {
+  const st = clinicStatus(f, d);
+  return '<div class="clinic-row"><div><div class="fname">' + f.name + '</div>' +
+    '<div class="small">' + (f.departments || '') + '｜' + st.label + (f.hours_text ? '｜' + f.hours_text : '') + '</div></div>' +
+    (f.phone ? '<a class="phone" href="tel:' + f.phone.replace(/-/g, '') + '">' + f.phone + '</a>'
+             : '<span class="small">' + (f.contact_note || '') + '</span>') + '</div>';
+}
 function renderClinics() {
   const d = viewDate();
   const home = hamletOf(settings && settings.home);
   const district = home ? home.district : null;
-  const list = DATA.facilities.filter(f => !district || f.district === district);
+  // hospitals / medical centers serve the whole town: always shown first
+  const hospitals = DATA.facilities.filter(f => f.kind === '病院' || f.kind === '医療センター');
+  const list = DATA.facilities.filter(f => !(f.kind === '病院' || f.kind === '医療センター') &&
+    (!district || f.district === district));
   const open = [], other = [];
   for (const f of list) {
     const st = clinicStatus(f, d);
-    const row = '<div class="clinic-row"><div><div class="fname">' + f.name + '</div>' +
-      '<div class="small">' + (f.departments || '') + '｜' + st.label + (f.hours_text ? '｜' + f.hours_text : '') + '</div></div>' +
-      (f.phone ? '<a class="phone" href="tel:' + f.phone.replace(/-/g, '') + '">' + f.phone + '</a>'
-               : '<span class="small">' + (f.contact_note || '') + '</span>') + '</div>';
-    (st.open === true ? open : other).push(row);
+    (st.open === true ? open : other).push(clinicRow(f, d));
   }
   $('#clinicBody').innerHTML =
-    (district ? '' : '<p class="small">全地区を表示中（設定で自宅を選ぶと地区で絞ります）。</p>') +
+    '<div class="subhead">病院・医療センター（町全域）</div>' + hospitals.map(f => clinicRow(f, d)).join('') +
+    '<div class="subhead">' + (district ? district + '地区の診療所' : '診療所（全地区）') + '</div>' +
     (open.length ? open.join('') : '<p class="small">この日に通常診療の施設はありません。</p>') +
     (other.length ? '<details><summary class="small">その他の施設（' + other.length + '件）</summary>' + other.join('') + '</details>' : '');
 }
 
 function renderFerries() {
-  const d = viewDate(), ds = dstr(d);
-  const s = settings || {};
-  if (!s.from || !s.to) {
-    $('#ferryBody').innerHTML = '<p class="small">設定で「よく使う航路」を選ぶと、その航路の時刻表が出ます。</p>';
+  // Operation status (today only, from the latest capture) — ignores the day navigator.
+  const ss = DATA.ship_status;
+  if (!ss) {
+    $('#ferryBody').innerHTML = '<p class="small">運航状況の取得データがまだありません。各船会社の公式発表をご確認ください。</p>';
     return;
   }
-  const list = DATA.sailings.filter(x => x.from === s.from && x.to === s.to && x.valid_from <= ds && ds <= x.valid_to)
-    .sort((a, b) => a.dep.localeCompare(b.dep));
-  const pname = id => (DATA.ports.find(p => p.id === id) || {}).name || id;
-  $('#ferryBody').innerHTML = '<div class="ferry-head">' + pname(s.from) + ' → ' + pname(s.to) + '</div>' +
-    (list.length ? list.map(x =>
-      '<div class="ferry-row"><span class="tag">' + x.vessel + (x.ship ? ' ' + x.ship : '') + '</span>' +
-      '<span class="ftime">' + x.dep + '</span> 発 → <span class="ftime">' + x.arr + '</span> 着</div>').join('')
-    : '<p class="small">この日の便はありません（ダイヤ対象外の可能性があります）。</p>');
+  const md = ss.date.slice(5).replace('-', '/');
+  const cap = ss.captured_at.slice(11);
+  const line = (name, s, fmt) => {
+    if (!s || !s.total) return '<div class="status-row"><span class="tag">' + name + '</span> 状況不明</div>';
+    if (s.cancel === 0 && !s.undecided)
+      return '<div class="status-row"><span class="tag ok">' + name + '</span> <strong>通常運航</strong>（全' + s.total + '便）</div>';
+    let h = '<div class="status-row"><span class="tag ng">' + name + '</span> <strong>欠航 ' + s.cancel + '便</strong>' +
+      (s.undecided ? '・未定 ' + s.undecided + '便' : '') + '（全' + s.total + '便）</div>';
+    h += s.cancelled.map(fmt).join('');
+    return h;
+  };
+  $('#ferryBody').innerHTML =
+    '<p class="small">' + md + ' の状況（' + cap + ' 時点の公式発表から自動取得）</p>' +
+    line('九州商船', ss.kyushu, c =>
+      '<div class="cancel-row">✕ ' + c.route + '｜' + c.vessel + ' ' + c.port + ' ' + c.time + ' 発' +
+      (c.reason ? '（' + c.reason + '）' : '') + '</div>') +
+    line('五島産業汽船', ss.goto, c =>
+      '<div class="cancel-row">✕ ' + c.port + ' ' + c.time + ' 発' + (c.reason ? '（' + c.reason + '）' : '') + '</div>') +
+    '<p class="small">野母商船・五島旅客船・崎戸商船の状況は自動取得の対象外です。<a href="https://smart-goto.jp/shinkamigoto/" target="_blank" rel="noopener">まちニュース（SmartGOTO）</a>や各社の公式発表でご確認ください。状況は変わることがあります。出発前に公式発表もご確認ください。</p>';
 }
 
 function renderBroadcasts() {
@@ -156,7 +188,7 @@ function doSearch() {
     }
     return '<div class="result"><div class="rname">' + it.name +
       (it.variant ? '（' + it.variant + '）' : '') + '</div>' +
-      '<span class="tag cat">' + it.table_category + '</span>' +
+      '<span class="tag cat" style="background:' + (TABLE_COLORS[it.table_category] || '#616161') + '">' + it.table_category + '</span>' +
       (it.bag ? '<div class="small">出し方：' + it.bag + '</div>' : '') +
       (it.note ? '<div class="small">注意：' + it.note + '</div>' : '') + next + '</div>';
   }).join('');
@@ -169,13 +201,9 @@ function settingsFormHTML() {
     '<optgroup label="' + dist + '地区">' + hs.map(h =>
       '<option value="' + dist + '|' + h.hamlet + '"' + (sel === dist + '|' + h.hamlet ? ' selected' : '') + '>' +
       h.hamlet + '（' + h.version + '版）</option>').join('') + '</optgroup>').join('');
-  const popts = sel => DATA.ports.map(p =>
-    '<option value="' + p.id + '"' + (sel === p.id ? ' selected' : '') + '>' + p.name + '</option>').join('');
   const s = settings || {};
   return '<label>自宅の集落<select id="setHome"><option value="">選択してください</option>' + opts(s.home) + '</select></label>' +
     '<label>実家の集落（任意）<select id="setParents"><option value="">なし</option>' + opts(s.parents) + '</select></label>' +
-    '<label>よく使う航路（任意）<div class="routeSel"><select id="setFrom"><option value="">出発港</option>' + popts(s.from) + '</select>' +
-    '<span>→</span><select id="setTo"><option value="">到着港</option>' + popts(s.to) + '</select></div></label>' +
     '<button id="saveSettings" class="primary">保存する</button>';
 }
 function bindSettings(scope) {
@@ -185,8 +213,6 @@ function bindSettings(scope) {
     settings = {
       home: scope.querySelector('#setHome').value || null,
       parents: scope.querySelector('#setParents').value || null,
-      from: scope.querySelector('#setFrom').value || null,
-      to: scope.querySelector('#setTo').value || null,
     };
     localStorage.setItem('lg-settings', JSON.stringify(settings));
     renderAll();
