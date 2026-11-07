@@ -70,6 +70,24 @@ function renderGomi() {
     }
   }
   $('#rareCountdown').innerHTML = cd.join('') || '<p class="small">—</p>';
+  // week ahead (from today, home + parents)
+  let wk = '';
+  for (let i = 1; i <= 7; i++) {
+    const d2 = new Date(); d2.setDate(d2.getDate() + i);
+    const ds2 = dstr(d2);
+    const rowFor = (label, h) => {
+      if (!h) return '';
+      const ids = DATA.events[h.version][ds2] || [];
+      const body = ids.length
+        ? ids.map(id => '<span class="wk-chip" style="border-left:5px solid ' + (CAT_COLORS[id] || '#999') + '">' +
+            DATA.categories[id].name + '</span>').join(' ')
+        : '<span class="none">収集なし</span>';
+      return '<div class="wk-sub"><span class="tag">' + label + '</span>' + body + '</div>';
+    };
+    wk += '<div class="wk-day"><div class="wk-date">' + (d2.getMonth() + 1) + '/' + d2.getDate() +
+      '（' + WD[d2.getDay()] + '）</div>' + rowFor('自宅', home) + rowFor('実家', par) + '</div>';
+  }
+  $('#weekGomi').innerHTML = home ? wk : '<p class="small">設定で自宅の集落を選んでください。</p>';
 }
 
 function clinicStatus(f, d) {
@@ -95,13 +113,31 @@ function clinicStatus(f, d) {
   return { open: null, label: txt };
 }
 
-function clinicRow(f, d) {
+function facilityCard(f, d) {
   const st = clinicStatus(f, d);
-  return '<div class="clinic-row"><div><div class="fname">' + f.name + '</div>' +
-    '<div class="small">' + (f.departments || '') + '｜' + st.label + (f.hours_text ? '｜' + f.hours_text : '') +
-    (f.address ? '｜' + f.address.replace('長崎県南松浦郡新上五島町', '') : '') + '</div></div>' +
-    (f.phone ? '<a class="phone" href="tel:' + f.phone.replace(/-/g, '') + '">' + f.phone + '</a>'
-             : '<span class="small">' + (f.contact_note || '') + '</span>') + '</div>';
+  const chip = st.open === true ? '<span class="stchip st-open">本日診療あり</span>'
+    : st.open === false ? '<span class="stchip st-closed">本日は休診</span>'
+    : '<span class="stchip st-unknown">要確認</span>';
+  const links = (f.links || '').split(';').filter(Boolean).map(p => {
+    const [label, url] = p.split('|');
+    return '<a class="flink" href="' + url + '" target="_blank" rel="noopener">' + label + '</a>';
+  }).join('');
+  const det = [];
+  det.push('診療日：' + st.label);
+  if (f.hours_text) det.push('受付：' + f.hours_text);
+  if (f.closed_text) det.push('休診：' + f.closed_text);
+  if (f.address) det.push('住所：' + f.address.replace('長崎県南松浦郡新上五島町', ''));
+  if (f.contact_note) det.push('問い合わせ：' + f.contact_note);
+  if (f.extra_note) det.push(f.extra_note);
+  if (f.notes) det.push('備考：' + f.notes);
+  return '<div class="fcard"><div class="fcard-head"><div><div class="fname">' + f.name + '</div>' +
+    '<div class="small">' + (f.departments || '') + '</div></div>' + chip + '</div>' +
+    '<div class="fcard-actions">' +
+    (f.phone ? '<a class="phone" href="tel:' + f.phone.replace(/-/g, '') + '">📞 ' + f.phone + '</a>'
+             : '<span class="small">' + (f.contact_note || '') + '</span>') +
+    '<details class="fdet"><summary>詳細を見る</summary><div class="small fdet-body">' +
+    det.map(x => '<div>' + x + '</div>').join('') + (links ? '<div class="flinks">' + links + '</div>' : '') +
+    '</div></details></div></div>';
 }
 function renderClinics() {
   const d = viewDate();
@@ -111,16 +147,14 @@ function renderClinics() {
   const hospitals = DATA.facilities.filter(f => f.kind === '病院' || f.kind === '医療センター');
   const list = DATA.facilities.filter(f => !(f.kind === '病院' || f.kind === '医療センター') &&
     (!district || f.district === district));
-  const open = [], other = [];
-  for (const f of list) {
-    const st = clinicStatus(f, d);
-    (st.open === true ? open : other).push(clinicRow(f, d));
-  }
+  const sorted = list.slice().sort((a, b) => {
+    const rank = f => clinicStatus(f, d).open === true ? 0 : clinicStatus(f, d).open === false ? 2 : 1;
+    return rank(a) - rank(b);
+  });
   $('#clinicBody').innerHTML =
-    '<div class="subhead">病院・医療センター（町全域）</div>' + hospitals.map(f => clinicRow(f, d)).join('') +
+    '<div class="subhead">病院・医療センター（町全域）</div>' + hospitals.map(f => facilityCard(f, d)).join('') +
     '<div class="subhead">' + (district ? district + '地区の診療所' : '診療所（全地区）') + '</div>' +
-    (open.length ? open.join('') : '<p class="small">この日に通常診療の施設はありません。</p>') +
-    (other.length ? '<details><summary class="small">その他の施設（' + other.length + '件）</summary>' + other.join('') + '</details>' : '');
+    (sorted.length ? sorted.map(f => facilityCard(f, d)).join('') : '<p class="small">この地区の施設データがありません。</p>');
 }
 
 function renderFerries() {

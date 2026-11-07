@@ -59,3 +59,18 @@ a { color: #1565c0; }
 .cancel-row { padding: 3px 0 3px 14px; color: #b71c1c; font-size: 0.95em; }
 .tag.cat { color: #fff; }
 .gomi-item { border-radius: 4px; }
+.fcard { border: 1px solid #dbe4ee; border-radius: 10px; padding: 10px 12px; margin: 8px 0; background: #fff; }
+.fcard-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.stchip { flex: none; font-size: 0.78em; font-weight: 700; color: #fff; border-radius: 999px; padding: 3px 9px; }
+.st-open { background: #2e7d32; }
+.st-closed { background: #90a4ae; }
+.st-unknown { background: #ef6c00; }
+.fcard-actions { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.fdet summary { cursor: pointer; color: #1565c0; font-size: 0.92em; }
+.fdet-body { margin-top: 6px; line-height: 1.7; }
+.flinks { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+.flink { background: #e3f2fd; color: #1565c0; border-radius: 6px; padding: 5px 10px; text-decoration: none; font-size: 0.9em; font-weight: 600; }
+.wk-day { padding: 7px 0; border-bottom: 1px solid #eee; }
+.wk-date { font-weight: 700; margin-bottom: 3px; }
+.wk-sub { margin: 2px 0; }
+.wk-chip { display: inline-block; background: #f5f7fa; border-radius: 4px; padding: 2px 8px; margin: 1px 2px; font-size: 0.92em; }

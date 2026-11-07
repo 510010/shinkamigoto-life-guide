@@ -28,25 +28,13 @@
     <div id="setupForm"></div>
   </section>
 
-  <section class="card" id="chipsCard">
-    <div class="chips" id="settingChips"></div>
-    <button class="linkbtn" id="openSettings">⚙ 設定を変更</button>
-    <div id="settingsPanel" hidden></div>
-  </section>
-
   <section class="card" id="gomiCard">
     <h2>🗑 <span class="dayword">今日</span>のごみ</h2>
     <div id="gomiToday"></div>
     <h3 class="mini">今月のレア収集まで（自宅）</h3>
     <div class="countdown" id="rareCountdown"></div>
-  </section>
-
-  <section class="card" id="searchCard">
-    <h2>🔍 ごみ分別検索</h2>
-    <div class="searchbox">
-      <input id="searchInput" type="search" placeholder="品目名（例：蛍光灯、乾電池、傘）" autocomplete="off">
-    </div>
-    <div id="searchResults"><p class="small">品目名を入力すると、分け方と、あなたの地区での次回収集日が出ます。一覧表にない品目は環境課（0959-53-1161）へお問い合わせください。</p></div>
+    <h3 class="mini">向こう一週間の予定</h3>
+    <div id="weekGomi"></div>
   </section>
 
   <section class="card" id="ferryCard">
@@ -67,6 +55,14 @@
     <p class="small">町の防災行政無線の放送を文字で蓄積しています（毎時巡回）。</p>
   </section>
 
+  <section class="card" id="searchCard">
+    <h2>🔍 ごみ分別検索</h2>
+    <div class="searchbox">
+      <input id="searchInput" type="search" placeholder="品目名（例：蛍光灯、乾電池、傘）" autocomplete="off">
+    </div>
+    <div id="searchResults"><p class="small">品目名を入力すると、分け方と、あなたの地区での次回収集日が出ます。一覧表にない品目は環境課（0959-53-1161）へお問い合わせください。</p></div>
+  </section>
+
   <section class="card" id="rulesCard">
     <h2>📖 ごみ出しルール</h2>
     <ul class="rules">
@@ -79,6 +75,13 @@
     </ul>
     <p class="small">詳しくは町公式の <a href="https://official.shinkamigoto.net/goto_faq_full.php?eid=00439&fcid=f00027&wcid=i00005x5" target="_blank" rel="noopener">ごみの分け方・出し方</a> をご覧ください。</p>
   </section>
+
+  <section class="card" id="chipsCard">
+    <div class="chips" id="settingChips"></div>
+    <button class="linkbtn" id="openSettings">⚙ 設定を変更</button>
+    <div id="settingsPanel" hidden></div>
+  </section>
+
 </main>
 
 <footer>
