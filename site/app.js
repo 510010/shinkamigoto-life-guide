@@ -70,24 +70,26 @@ function renderGomi() {
     }
   }
   $('#rareCountdown').innerHTML = cd.join('') || '<p class="small">—</p>';
-  // week ahead (from today, home + parents)
-  let wk = '';
-  for (let i = 1; i <= 7; i++) {
-    const d2 = new Date(); d2.setDate(d2.getDate() + i);
-    const ds2 = dstr(d2);
-    const rowFor = (label, h) => {
-      if (!h) return '';
-      const ids = DATA.events[h.version][ds2] || [];
-      const body = ids.length
-        ? ids.map(id => '<span class="wk-chip" style="border-left:5px solid ' + (CAT_COLORS[id] || '#999') + '">' +
-            DATA.categories[id].name + '</span>').join(' ')
-        : '<span class="none">収集なし</span>';
-      return '<div class="wk-sub"><span class="tag">' + label + '</span>' + body + '</div>';
-    };
-    wk += '<div class="wk-day"><div class="wk-date">' + (d2.getMonth() + 1) + '/' + d2.getDate() +
-      '（' + WD[d2.getDay()] + '）</div>' + rowFor('自宅', home) + rowFor('実家', par) + '</div>';
-  }
-  $('#weekGomi').innerHTML = home ? wk : '<p class="small">設定で自宅の集落を選んでください。</p>';
+  // week ahead (from today): compact 7-column strip, one per household
+  const SHORT = { burnable: '燃', nonburnable: '不燃', cans_bottles_pet: '缶びん', cardboard_paper: '段ボール', hazardous: '有害', foam_tray: '発泡', bulky_burnable: '粗大' };
+  const strip = h => {
+    if (!h) return '';
+    let cells = '';
+    for (let i = 1; i <= 7; i++) {
+      const d2 = new Date(); d2.setDate(d2.getDate() + i);
+      const ids = DATA.events[h.version][dstr(d2)] || [];
+      cells += '<div class="wk-cell"><div class="wk-d">' + (d2.getMonth() + 1) + '/' + d2.getDate() +
+        '<span class="wk-w">(' + WD[d2.getDay()] + ')</span></div>' +
+        (ids.length ? ids.map(id => '<div class="wk-c" style="border-left:4px solid ' + (CAT_COLORS[id] || '#999') + '">' +
+          (SHORT[id] || DATA.categories[id].name) + '</div>').join('')
+                    : '<div class="wk-c none">なし</div>') + '</div>';
+    }
+    return '<div class="wk-strip">' + cells + '</div>';
+  };
+  $('#weekGomi').innerHTML = home
+    ? '<div class="wk-label">自宅（' + home.version + '版）</div>' + strip(home) +
+      (par ? '<div class="wk-label">実家（' + par.version + '版）</div>' + strip(par) : '')
+    : '<p class="small">設定で自宅の集落を選んでください。</p>';
 }
 
 function clinicStatus(f, d) {
@@ -95,6 +97,14 @@ function clinicStatus(f, d) {
   const dow = d.getDay(); // 0 Sun
   const wd = [7, 1, 2, 3, 4, 5, 6][dow]; // Mon=1..Sun=7
   const pt = f.pattern_type, txt = f.pattern_text || '';
+  // explicit nth-weekday closures in closed_text (e.g. 第3土曜日休診)
+  const cm = (f.closed_text || '').match(/第(\d)([月火水木金土日])曜/);
+  if (cm && WD[dow] === cm[2] && Math.floor((d.getDate() - 1) / 7) + 1 === Number(cm[1])) {
+    return { open: false, label: txt + '（第' + cm[1] + cm[2] + '曜は休診）' };
+  }
+  if (pt === 'custom' && f.open_days) {
+    return { open: f.open_days.includes(String(wd)), label: txt };
+  }
   if (pt === 'hospital') return { open: wd <= 5, label: '平日は外来あり（診療科ごとに異なるため公式サイトで確認を）' };
   if (pt === 'weekday_set') return { open: wd <= 5, label: txt };
   if (pt === 'weekly') {
@@ -113,25 +123,57 @@ function clinicStatus(f, d) {
   return { open: null, label: txt };
 }
 
+function parseDeptDays(f) {
+  if (!f.dept_days) return null;
+  return f.dept_days.split(';').filter(Boolean).map(e => {
+    const i = e.indexOf(':');
+    return { name: e.slice(0, i), days: e.slice(i + 1) };
+  });
+}
+function deptDaysLabel(dd) {
+  const names = { 1: '月', 2: '火', 3: '水', 4: '木', 5: '金', 6: '土', 7: '日' };
+  const m = dd.match(/^([0-9]+)(\((.*)\))?$/);
+  if (!m) return dd;
+  return m[1].split('').map(c => names[c]).join('・') + (m[3] ? '（' + m[3] + '）' : '');
+}
+function todaysDepts(f, d) {
+  const list = parseDeptDays(f);
+  if (!list) return null;
+  const wd = String([7, 1, 2, 3, 4, 5, 6][d.getDay()]);
+  return list.filter(e => {
+    const m = e.days.match(/^[0-9]+/);
+    return m && m[0].includes(wd);
+  }).map(e => e.name);
+}
 function facilityCard(f, d) {
   const st = clinicStatus(f, d);
   const chip = st.open === true ? '<span class="stchip st-open">本日診療あり</span>'
     : st.open === false ? '<span class="stchip st-closed">本日は休診</span>'
     : '<span class="stchip st-unknown">要確認</span>';
+  const isFav = settings && (settings.favs || []).includes(f.facility_id);
+  const td = todaysDepts(f, d);
+  const faceSub = td !== null
+    ? (st.open === true
+        ? '<div class="small">今日の診療科：' + (td.length ? td.join('・') : 'なし（科の診療日ではありません）') + '</div>'
+        : '<div class="small">' + (f.departments || '') + '</div>')
+    : '<div class="small">' + (f.departments || '') + '</div>';
   const links = (f.links || '').split(';').filter(Boolean).map(p => {
     const [label, url] = p.split('|');
     return '<a class="flink" href="' + url + '" target="_blank" rel="noopener">' + label + '</a>';
   }).join('');
   const det = [];
   det.push('診療日：' + st.label);
+  const ddl = parseDeptDays(f);
+  if (ddl) det.push('診療科と曜日：' + ddl.map(e => e.name + '（' + deptDaysLabel(e.days) + '）').join('、'));
   if (f.hours_text) det.push('受付：' + f.hours_text);
   if (f.closed_text) det.push('休診：' + f.closed_text);
   if (f.address) det.push('住所：' + f.address.replace('長崎県南松浦郡新上五島町', ''));
   if (f.contact_note) det.push('問い合わせ：' + f.contact_note);
   if (f.extra_note) det.push(f.extra_note);
   if (f.notes) det.push('備考：' + f.notes);
-  return '<div class="fcard"><div class="fcard-head"><div><div class="fname">' + f.name + '</div>' +
-    '<div class="small">' + (f.departments || '') + '</div></div>' + chip + '</div>' +
+  return '<div class="fcard"><div class="fcard-head"><div><div class="fname">' + f.name +
+    ' <button class="favbtn" data-fav="' + f.facility_id + '" title="かかりつけに登録">' + (isFav ? '★' : '☆') + '</button></div>' +
+    faceSub + '</div>' + chip + '</div>' +
     '<div class="fcard-actions">' +
     (f.phone ? '<a class="phone" href="tel:' + f.phone.replace(/-/g, '') + '">📞 ' + f.phone + '</a>'
              : '<span class="small">' + (f.contact_note || '') + '</span>') +
@@ -143,18 +185,29 @@ function renderClinics() {
   const d = viewDate();
   const home = hamletOf(settings && settings.home);
   const district = home ? home.district : null;
-  // hospitals / medical centers serve the whole town: always shown first
-  const hospitals = DATA.facilities.filter(f => f.kind === '病院' || f.kind === '医療センター');
-  const list = DATA.facilities.filter(f => !(f.kind === '病院' || f.kind === '医療センター') &&
-    (!district || f.district === district));
-  const sorted = list.slice().sort((a, b) => {
-    const rank = f => clinicStatus(f, d).open === true ? 0 : clinicStatus(f, d).open === false ? 2 : 1;
-    return rank(a) - rank(b);
-  });
+  const favIds = (settings && settings.favs) || [];
+  const rank = f => clinicStatus(f, d).open === true ? 0 : clinicStatus(f, d).open === false ? 2 : 1;
+  const byRank = arr => arr.slice().sort((a, b) => rank(a) - rank(b));
+  const favs = byRank(DATA.facilities.filter(f => favIds.includes(f.facility_id)));
+  // hospitals / medical centers serve the whole town: always shown
+  const hospitals = DATA.facilities.filter(f => (f.kind === '病院' || f.kind === '医療センター') && !favIds.includes(f.facility_id));
+  const list = byRank(DATA.facilities.filter(f => !(f.kind === '病院' || f.kind === '医療センター') &&
+    !favIds.includes(f.facility_id) && (!district || f.district === district)));
   $('#clinicBody').innerHTML =
+    (favs.length ? '<div class="subhead">かかりつけ</div>' + favs.map(f => facilityCard(f, d)).join('') : '') +
     '<div class="subhead">病院・医療センター（町全域）</div>' + hospitals.map(f => facilityCard(f, d)).join('') +
     '<div class="subhead">' + (district ? district + '地区の診療所' : '診療所（全地区）') + '</div>' +
-    (sorted.length ? sorted.map(f => facilityCard(f, d)).join('') : '<p class="small">この地区の施設データがありません。</p>');
+    (list.length ? list.map(f => facilityCard(f, d)).join('') : '<p class="small">この地区の施設データがありません。</p>') +
+    (favs.length ? '' : '<p class="small">カードの ☆ を押すか、設定で「かかりつけ」を選ぶと、その施設が常にここへ出ます。</p>');
+  document.querySelectorAll('[data-fav]').forEach(btn => btn.addEventListener('click', () => {
+    const id = btn.dataset.fav;
+    settings = settings || {};
+    settings.favs = settings.favs || [];
+    settings.favs = settings.favs.includes(id)
+      ? settings.favs.filter(x => x !== id) : [...settings.favs, id];
+    localStorage.setItem('lg-settings', JSON.stringify(settings));
+    renderClinics();
+  }));
 }
 
 function renderFerries() {
@@ -237,8 +290,24 @@ function settingsFormHTML() {
       '<option value="' + dist + '|' + h.hamlet + '"' + (sel === dist + '|' + h.hamlet ? ' selected' : '') + '>' +
       h.hamlet + '（' + h.version + '版）</option>').join('') + '</optgroup>').join('');
   const s = settings || {};
+  const favs = s.favs || [];
+  const favBox = (title, arr) => arr.length
+    ? '<div class="favgroup"><div class="small"><strong>' + title + '</strong></div>' + arr.map(f =>
+        '<label class="favitem"><input type="checkbox" name="favClinic" value="' + f.facility_id + '"' +
+        (favs.includes(f.facility_id) ? ' checked' : '') + '> ' + f.name + '</label>').join('') + '</div>'
+    : '';
+  const hosp = DATA.facilities.filter(f => f.kind === '病院' || f.kind === '医療センター');
+  const byDist = {};
+  for (const f of DATA.facilities) {
+    if (f.kind === '病院' || f.kind === '医療センター') continue;
+    (byDist[f.district] = byDist[f.district] || []).push(f);
+  }
+  const favHtml = '<fieldset class="favset"><legend>かかりつけの診療所（常に表示されます）</legend>' +
+    favBox('病院・医療センター', hosp) +
+    Object.entries(byDist).map(([dist, arr]) => favBox(dist + '地区', arr)).join('') + '</fieldset>';
   return '<label>自宅の集落<select id="setHome"><option value="">選択してください</option>' + opts(s.home) + '</select></label>' +
     '<label>実家の集落（任意）<select id="setParents"><option value="">なし</option>' + opts(s.parents) + '</select></label>' +
+    favHtml +
     '<button id="saveSettings" class="primary">保存する</button>';
 }
 function bindSettings(scope) {
@@ -248,6 +317,7 @@ function bindSettings(scope) {
     settings = {
       home: scope.querySelector('#setHome').value || null,
       parents: scope.querySelector('#setParents').value || null,
+      favs: [...scope.querySelectorAll('input[name="favClinic"]:checked')].map(x => x.value),
     };
     localStorage.setItem('lg-settings', JSON.stringify(settings));
     renderAll();

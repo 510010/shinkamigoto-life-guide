@@ -70,7 +70,16 @@ a { color: #1565c0; }
 .fdet-body { margin-top: 6px; line-height: 1.7; }
 .flinks { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
 .flink { background: #e3f2fd; color: #1565c0; border-radius: 6px; padding: 5px 10px; text-decoration: none; font-size: 0.9em; font-weight: 600; }
-.wk-day { padding: 7px 0; border-bottom: 1px solid #eee; }
-.wk-date { font-weight: 700; margin-bottom: 3px; }
-.wk-sub { margin: 2px 0; }
-.wk-chip { display: inline-block; background: #f5f7fa; border-radius: 4px; padding: 2px 8px; margin: 1px 2px; font-size: 0.92em; }
+
+.wk-label { font-size: 0.85em; font-weight: 700; color: #546e7a; margin-top: 6px; }
+.wk-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 4px 0 2px; }
+.wk-cell { background: #f5f7fa; border-radius: 6px; padding: 4px 3px; min-height: 52px; }
+.wk-d { font-size: 0.78em; font-weight: 700; text-align: center; color: #37474f; }
+.wk-w { font-weight: 400; color: #78909c; }
+.wk-c { font-size: 0.72em; background: #fff; border-radius: 3px; padding: 1px 3px; margin-top: 3px; line-height: 1.35; white-space: nowrap; }
+.wk-c.none { color: #b0bec5; background: transparent; text-align: center; }
+.favbtn { background: none; border: none; font-size: 1.05em; color: #f9a825; cursor: pointer; padding: 0 2px; }
+.favset { border: 1px solid #dbe4ee; border-radius: 8px; margin: 10px 0; padding: 8px 10px; }
+.favset legend { font-size: 0.9em; font-weight: 700; color: #1565c0; padding: 0 4px; }
+.favgroup { margin: 6px 0; }
+.favitem { display: block; font-size: 0.92em; padding: 2px 0; }
