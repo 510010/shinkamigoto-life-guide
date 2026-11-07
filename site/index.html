@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>上五島くらし案内</title>
+<meta name="description" content="新上五島町の暮らし情報（ごみ・船・診療・防災無線）。個人運営（非公式）。">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1565c0">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>上五島くらし案内</h1>
+  <div class="sub">個人運営（非公式）｜新上五島町の暮らし情報</div>
+  <div class="datenav">
+    <button id="prevDay" aria-label="前日">◀</button>
+    <span id="dateLabel">読み込み中…</span>
+    <button id="nextDay" aria-label="翌日">▶</button>
+    <button id="todayBtn">今日</button>
+  </div>
+</header>
+
+<main id="app">
+  <section id="setupCard" class="card accent" hidden>
+    <h2>はじめに設定してください</h2>
+    <p class="small">あなたの集落を選ぶと、その地区のごみ収集日が表示されます。設定はこの端末の中だけに保存され、外部に送信されません。</p>
+    <div id="setupForm"></div>
+  </section>
+
+  <section class="card" id="chipsCard">
+    <div class="chips" id="settingChips"></div>
+    <button class="linkbtn" id="openSettings">⚙ 設定を変更</button>
+    <div id="settingsPanel" hidden></div>
+  </section>
+
+  <section class="card" id="gomiCard">
+    <h2>🗑 <span class="dayword">今日</span>のごみ</h2>
+    <div id="gomiToday"></div>
+    <h3 class="mini">今月のレア収集まで（自宅）</h3>
+    <div class="countdown" id="rareCountdown"></div>
+  </section>
+
+  <section class="card" id="searchCard">
+    <h2>🔍 ごみ分別検索</h2>
+    <div class="searchbox">
+      <input id="searchInput" type="search" placeholder="品目名（例：蛍光灯、乾電池、傘）" autocomplete="off">
+    </div>
+    <div id="searchResults"><p class="small">品目名を入力すると、分け方と、あなたの地区での次回収集日が出ます。一覧表にない品目は環境課（0959-53-1161）へお問い合わせください。</p></div>
+  </section>
+
+  <section class="card" id="ferryCard">
+    <h2>⛴ <span class="dayword">今日</span>の船</h2>
+    <div id="ferryBody"></div>
+    <p class="small">運航状況・臨時ダイヤは各船会社の公式発表をご確認ください。詳しい検索・運賃は <a href="https://510010.github.io/shinkamigoto-route-guide/" target="_blank" rel="noopener">上五島航路案内</a> へ。</p>
+  </section>
+
+  <section class="card" id="clinicCard">
+    <h2>🏥 <span class="dayword">今日</span>の診療所</h2>
+    <div id="clinicBody"></div>
+    <div class="warn">ここに載るのは通常の診療日です。臨時休診のことがあるので、受診前に必ず電話でご確認ください。休日当番医は <a href="https://www.iryou.teikyouseido.mhlw.go.jp/" target="_blank" rel="noopener">医療情報ネット</a> でご確認ください。</div>
+  </section>
+
+  <section class="card" id="broadcastCard">
+    <h2>📻 防災無線の新着</h2>
+    <div id="broadcastBody"></div>
+    <p class="small">町の防災行政無線の放送を文字で蓄積しています（毎時巡回）。</p>
+  </section>
+
+  <section class="card" id="rulesCard">
+    <h2>📖 ごみ出しルール</h2>
+    <ul class="rules">
+      <li>ごみは収集日の<strong>朝8時30分まで</strong>に、決められたごみステーションへ。</li>
+      <li>燃やせるごみ・燃やせないごみは<strong>町指定袋</strong>で。缶・びん・ペットボトルや有害ごみは中身の見える透明袋で。</li>
+      <li>粗大ごみには<strong>粗大ごみ処理券</strong>を貼ってください。</li>
+      <li>テレビ・冷蔵庫などの家電4品目、パソコン、バッテリーなど<strong>町が収集しないごみ</strong>があります（分別検索で確認できます）。</li>
+      <li>自分で持ち込む場合：ごみ焼却施設（0959-53-1750）／リサイクルプラザ（0959-43-0968）、受入は8時30分〜16時30分。</li>
+      <li>分からないときは住民生活課・環境班（0959-53-1161）へ。</li>
+    </ul>
+    <p class="small">詳しくは町公式の <a href="https://official.shinkamigoto.net/goto_faq_full.php?eid=00439&fcid=f00027&wcid=i00005x5" target="_blank" rel="noopener">ごみの分け方・出し方</a> をご覧ください。</p>
+  </section>
+</main>
+
+<footer>
+  <p>出典：新上五島町公式サイト（ごみ収集カレンダー令和8年度・ごみの分け方手引書・地区別診療所ページ）、各船会社公式サイト。データ生成：<span id="genAt"></span>。</p>
+  <p>このサイトは個人運営（非公式）です。町公式の情報は <a href="https://official.shinkamigoto.net/" target="_blank" rel="noopener">新上五島町公式サイト</a> でご確認ください。行政手続き・緊急の連絡は行っていません。</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

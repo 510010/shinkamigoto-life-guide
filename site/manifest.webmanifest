@@ -1,0 +1,14 @@
+{
+  "name": "上五島くらし案内",
+  "short_name": "くらし案内",
+  "description": "新上五島町の暮らし情報（ごみ・船・診療・防災無線）。個人運営（非公式）。",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1565c0",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
