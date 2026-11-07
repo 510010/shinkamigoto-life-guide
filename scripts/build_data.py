@@ -108,7 +108,17 @@ data = {
     'ship_status': ship_status,
 }
 os.makedirs(f'{ROOT}/site', exist_ok=True)
-with open(f'{ROOT}/site/data.json', 'w', encoding='utf-8') as f:
+# keep generated_at stable when nothing else changed (avoids noisy hourly commits)
+out_path = f'{ROOT}/site/data.json'
+if os.path.exists(out_path):
+    try:
+        old_data = json.load(open(out_path, encoding='utf-8'))
+        if {k: v for k, v in old_data.items() if k != 'meta'} == \
+           {k: v for k, v in data.items() if k != 'meta'}:
+            data['meta']['generated_at'] = old_data['meta']['generated_at']
+    except Exception:
+        pass
+with open(out_path, 'w', encoding='utf-8') as f:
     json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
 print('data.json:', len(hamlets), 'hamlets,', len(items), 'items,',
       len(facilities), 'facilities,', len(sailings), 'sailings,', len(bcs), 'broadcasts,',
