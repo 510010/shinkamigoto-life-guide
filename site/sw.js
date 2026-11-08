@@ -1,5 +1,5 @@
-const CACHE = 'kurashi-v10';
-const ASSETS = ['./', './index.html', './style.css', './app.js', './data.json', './manifest.webmanifest', './icon.svg'];
+const CACHE = 'kurashi-v11';
+const ASSETS = ['./', './index.html', './style.css', './app.js', './data.json', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
 });
