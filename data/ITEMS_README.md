@@ -16,6 +16,7 @@ PDFは `../source/gomi-guide/guide_tebiki.pdf`。分別早見表（A2ポスタ�
 - `table_category` 手引書の表の区分（9区分）そのまま
 - `bag` 袋・処理券の指定
 - `note` 表の摘要（例：中身を使い切る、完全に洗うこと、販売店・産廃業者など）
+- `reading` 品目名のカタカナ読み（分別検索の読み仮名検索用。`scripts/gen_readings.py` で pykakasi により生成）
 
 ## 区分の分布
 

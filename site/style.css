@@ -54,8 +54,8 @@ a { color: #1565c0; }
 
 .subhead { font-weight: 700; margin: 10px 0 4px; color: #1565c0; }
 .status-row { padding: 6px 0; border-bottom: 1px solid #eee; }
-.tag.ok { background: #2e7d32; }
-.tag.ng { background: #c62828; }
+.tag.ok { background: #2e7d32; color: #fff; }
+.tag.ng { background: #c62828; color: #fff; }
 .cancel-row { padding: 3px 0 3px 14px; color: #b71c1c; font-size: 0.95em; }
 .tag.cat { color: #fff; }
 .gomi-item { border-radius: 4px; }

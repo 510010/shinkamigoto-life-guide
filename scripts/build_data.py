@@ -104,7 +104,7 @@ data = {
              'town': '新上五島町'},
     'hamlets': hamlets, 'categories': categories, 'events': events,
     'items': items, 'facilities': facilities,
-    'ports': port_list, 'sailings': sailings, 'broadcasts': bcs,
+    'broadcasts': bcs,
     'ship_status': ship_status,
 }
 os.makedirs(f'{ROOT}/site', exist_ok=True)

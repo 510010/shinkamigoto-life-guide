@@ -20,6 +20,23 @@ const TABLE_COLORS = {
 function dstr(d) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+// 日本の祝日（2026・2027年。振替休日・国民の休日を含む）
+const HOLIDAYS = new Set([
+  '2026-01-01', '2026-01-12', '2026-02-11', '2026-02-23', '2026-03-20', '2026-04-29',
+  '2026-05-03', '2026-05-04', '2026-05-05', '2026-05-06', '2026-07-20', '2026-08-11',
+  '2026-09-21', '2026-09-22', '2026-09-23', '2026-10-12', '2026-11-03', '2026-11-23',
+  '2027-01-01', '2027-01-11', '2027-02-11', '2027-02-23', '2027-03-20', '2027-04-29',
+  '2027-05-03', '2027-05-04', '2027-05-05', '2027-07-19', '2027-08-11',
+  '2027-09-20', '2027-09-23', '2027-10-11', '2027-11-03', '2027-11-23',
+]);
+function isHoliday(d) { return HOLIDAYS.has(dstr(d)); }
+function isNewYearClosed(d) {
+  const m = d.getMonth() + 1, day = d.getDate();
+  return (m === 12 && day >= 29) || (m === 1 && day <= 3);
+}
 function viewDate() { const d = new Date(); d.setDate(d.getDate() + dayOffset); return d; }
 function daysUntil(dateStr, from) {
   const a = new Date(dateStr + 'T00:00:00'), b = new Date(dstr(from) + 'T00:00:00');
@@ -36,19 +53,29 @@ function nextCollection(version, categoryId, from) {
   return dates[0] || null;
 }
 
+function eventsRange() {
+  const all = Object.values(DATA.events).flatMap(ev => Object.keys(ev)).sort();
+  return all.length ? [all[0], all[all.length - 1]] : null;
+}
 function renderGomi() {
   const d = viewDate(), ds = dstr(d);
   const home = hamletOf(settings && settings.home);
   const par = hamletOf(settings && settings.parents);
+  const range = eventsRange();
+  const outOfRange = range && (ds < range[0] || ds > range[1]);
+  const rangeWarn = range
+    ? '<span class="none">収集カレンダーのデータ期間（' + range[1].slice(0, 4) + '年' + Number(range[1].slice(5, 7)) + '月' + Number(range[1].slice(8, 10)) + '日まで）を過ぎています。新しいカレンダーが未登録のため、収集日を表示できません。</span>'
+    : '';
   let html = '';
   const block = (label, h) => {
     if (!h) return '';
+    if (outOfRange) return '<div class="gomi-row"><span class="tag">' + label + ' ' + h.version + '版</span>' + rangeWarn + '</div>';
     const ids = DATA.events[h.version][ds] || [];
     const cats = ids.map(id => ({ id, ...DATA.categories[id] }));
     const rare = cats.some(c => c.rare);
     const body = cats.length
       ? cats.map(c => '<span class="gomi-item tap' + (c.rare ? ' rare-item' : '') + '" data-cat="' + c.id + '" data-panel="bagInfoToday" style="border-left:6px solid ' +
-          (CAT_COLORS[c.id] || '#999') + '">' + c.name + '</span>').join(' ')
+          (CAT_COLORS[c.id] || '#999') + '">' + esc(c.name) + '</span>').join(' ')
       : '<span class="none">収集なし</span>';
     return '<div class="gomi-row' + (rare ? ' rare-row' : '') + '"><span class="tag">' + label + ' ' + h.version + '版</span>' + body + '</div>';
   };
@@ -86,7 +113,10 @@ function renderGomi() {
     }
     return '<div class="wk-strip">' + cells + '</div>';
   };
-  $('#weekGomi').innerHTML = home
+  const todayOut = range && dstr(new Date()) > range[1];
+  $('#weekGomi').innerHTML = todayOut
+    ? '<p class="small">' + rangeWarn + '</p>'
+    : home
     ? '<div class="wk-label">自宅（' + home.version + '版）</div>' + strip(home) +
       (par ? '<div class="wk-label">実家（' + par.version + '版）</div>' + strip(par) : '')
     : '<p class="small">設定で自宅の集落を選んでください。</p>';
@@ -103,7 +133,7 @@ function renderGomi() {
       const when = el.dataset.date
         ? '<span class="bagdate">' + el.dataset.date.slice(5).replace('-', '/') + '（' + WD[new Date(el.dataset.date + 'T00:00:00').getDay()] + '）の収集</span>'
         : '';
-      panel.innerHTML = '<strong>' + cat.name + '</strong>' + when + '<br>出し方：' + cat.bag;
+      panel.innerHTML = '<strong>' + esc(cat.name) + '</strong>' + when + '<br>出し方：' + esc(cat.bag);
       panel.hidden = false;
     });
   });
@@ -114,6 +144,11 @@ function clinicStatus(f, d) {
   const dow = d.getDay(); // 0 Sun
   const wd = [7, 1, 2, 3, 4, 5, 6][dow]; // Mon=1..Sun=7
   const pt = f.pattern_type, txt = f.pattern_text || '';
+  // holidays / new-year closures, when the facility's closed_text says so
+  const ct0 = f.closed_text || '';
+  if ((ct0.includes('祝日') && isHoliday(d)) || (ct0.includes('年末年始') && isNewYearClosed(d))) {
+    return { open: false, label: txt + '（祝日・年末年始は休診）' };
+  }
   // explicit nth-weekday closures in closed_text (e.g. 第3土曜日休診)
   const cm = (f.closed_text || '').match(/第(\d)([月火水木金土日])曜/);
   if (cm && WD[dow] === cm[2] && Math.floor((d.getDate() - 1) / 7) + 1 === Number(cm[1])) {
@@ -153,14 +188,32 @@ function deptDaysLabel(dd) {
   if (!m) return dd;
   return m[1].split('').map(c => names[c]).join('・') + (m[3] ? '（' + m[3] + '）' : '');
 }
+function deptOpenOn(daysStr, d) {
+  // returns true / false / 'unknown' (the weekday matches but the week of the month
+  // cannot be determined, e.g. 月2回・週により変動)
+  const wd = [7, 1, 2, 3, 4, 5, 6][d.getDay()];
+  const m = String(daysStr).match(/^([0-9]+)(?:\((.*)\))?$/);
+  if (!m) return false;
+  const digits = m[1], q = m[2] || '';
+  const nth = Math.floor((d.getDate() - 1) / 7) + 1;
+  // 「第2週は火曜・第3週は金曜」型: the qualifier fully specifies (week, weekday) pairs
+  const per = [...q.matchAll(/第(\d)週は([月火水木金土日])曜/g)];
+  if (per.length) return per.some(p => Number(p[1]) === nth && WD[d.getDay()] === p[2]);
+  if (/月\s*\d+\s*回|週により変動/.test(q)) return digits.includes(String(wd)) ? 'unknown' : false;
+  const wk = q.match(/第([0-9・]+)週/);
+  if (wk) {
+    const weeks = wk[1].split('・').map(Number);
+    return digits.includes(String(wd)) && weeks.includes(nth);
+  }
+  return digits.includes(String(wd));
+}
 function todaysDepts(f, d) {
   const list = parseDeptDays(f);
   if (!list) return null;
-  const wd = String([7, 1, 2, 3, 4, 5, 6][d.getDay()]);
-  return list.filter(e => {
-    const m = e.days.match(/^[0-9]+/);
-    return m && m[0].includes(wd);
-  }).map(e => e.name);
+  return list
+    .map(e => ({ name: e.name, st: deptOpenOn(e.days, d) }))
+    .filter(x => x.st !== false)
+    .map(x => x.st === 'unknown' ? x.name + '（要確認）' : x.name);
 }
 function facilityCard(f, d) {
   const st = clinicStatus(f, d);
@@ -171,29 +224,29 @@ function facilityCard(f, d) {
   const td = todaysDepts(f, d);
   const faceSub = td !== null
     ? (st.open === true
-        ? '<div class="small">今日の診療科：' + (td.length ? td.join('・') : 'なし（科の診療日ではありません）') + '</div>'
-        : '<div class="small">' + (f.departments || '') + '</div>')
-    : '<div class="small">' + (f.departments || '') + '</div>';
+        ? '<div class="small">今日の診療科：' + (td.length ? esc(td.join('・')) : 'なし（科の診療日ではありません）') + '</div>'
+        : '<div class="small">' + esc(f.departments || '') + '</div>')
+    : '<div class="small">' + esc(f.departments || '') + '</div>';
   const links = (f.links || '').split(';').filter(Boolean).map(p => {
     const [label, url] = p.split('|');
-    return '<a class="flink" href="' + url + '" target="_blank" rel="noopener">' + label + '</a>';
+    return '<a class="flink" href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(label) + '</a>';
   }).join('');
   const det = [];
-  det.push('診療日：' + st.label);
+  det.push('診療日：' + esc(st.label));
   const ddl = parseDeptDays(f);
-  if (ddl) det.push('診療科と曜日：' + ddl.map(e => e.name + '（' + deptDaysLabel(e.days) + '）').join('、'));
-  if (f.hours_text) det.push('受付：' + f.hours_text);
-  if (f.closed_text) det.push('休診：' + f.closed_text);
-  if (f.address) det.push('住所：' + f.address.replace('長崎県南松浦郡新上五島町', ''));
-  if (f.contact_note) det.push('問い合わせ：' + f.contact_note);
-  if (f.extra_note) det.push(f.extra_note);
-  if (f.notes) det.push('備考：' + f.notes);
-  return '<div class="fcard"><div class="fcard-head"><div><div class="fname">' + f.name +
+  if (ddl) det.push('診療科と曜日：' + ddl.map(e => esc(e.name) + '（' + esc(deptDaysLabel(e.days)) + '）').join('、'));
+  if (f.hours_text) det.push('受付：' + esc(f.hours_text));
+  if (f.closed_text) det.push('休診：' + esc(f.closed_text));
+  if (f.address) det.push('住所：' + esc(f.address.replace('長崎県南松浦郡新上五島町', '')));
+  if (f.contact_note) det.push('問い合わせ：' + esc(f.contact_note));
+  if (f.extra_note) det.push(esc(f.extra_note));
+  if (f.notes) det.push('備考：' + esc(f.notes));
+  return '<div class="fcard"><div class="fcard-head"><div><div class="fname">' + esc(f.name) +
     ' <button class="favbtn" data-fav="' + f.facility_id + '" title="かかりつけに登録">' + (isFav ? '★' : '☆') + '</button></div>' +
     faceSub + '</div>' + chip + '</div>' +
     '<div class="fcard-actions">' +
-    (f.phone ? '<a class="phone" href="tel:' + f.phone.replace(/-/g, '') + '">📞 ' + f.phone + '</a>'
-             : '<span class="small">' + (f.contact_note || '') + '</span>') +
+    (f.phone ? '<a class="phone" href="tel:' + f.phone.replace(/-/g, '') + '">📞 ' + esc(f.phone) + '</a>'
+             : '<span class="small">' + esc(f.contact_note || '') + '</span>') +
     '<details class="fdet"><summary>詳細を見る</summary><div class="small fdet-body">' +
     det.map(x => '<div>' + x + '</div>').join('') + (links ? '<div class="flinks">' + links + '</div>' : '') +
     '</div></details></div></div>';
@@ -251,20 +304,20 @@ function renderFerries() {
     return h;
   };
   $('#ferryBody').innerHTML =
-    '<p class="small"><span class="tag" style="background:#ef6c00">試験表示</span> ' + md + ' の状況（' + cap + ' 時点の公式発表から自動取得。試験中のため公式発表と異なる場合があります）</p>' +
+    '<p class="small"><span class="tag" style="background:#ef6c00;color:#fff">試験表示</span> ' + md + ' の状況（' + cap + ' 時点の公式発表から自動取得。試験中のため公式発表と異なる場合があります）</p>' +
     line('九州商船', ss.kyushu, c =>
-      '<div class="cancel-row">✕ ' + c.route + '｜' + c.vessel + ' ' + c.port + ' ' + c.time + ' 発' +
-      (c.reason ? '（' + c.reason + '）' : '') + '</div>') +
+      '<div class="cancel-row">✕ ' + esc(c.route) + '｜' + esc(c.vessel) + ' ' + esc(c.port) + ' ' + esc(c.time) + ' 発' +
+      (c.reason ? '（' + esc(c.reason) + '）' : '') + '</div>') +
     line('五島産業汽船', ss.goto, c =>
-      '<div class="cancel-row">✕ ' + c.port + ' ' + c.time + ' 発' + (c.reason ? '（' + c.reason + '）' : '') + '</div>') +
+      '<div class="cancel-row">✕ ' + esc(c.port) + ' ' + esc(c.time) + ' 発' + (c.reason ? '（' + esc(c.reason) + '）' : '') + '</div>') +
     '<p class="small">野母商船・五島旅客船・崎戸商船の状況は自動取得の対象外です。<a href="https://smart-goto.jp/shinkamigoto/" target="_blank" rel="noopener">まちニュース（SmartGOTO）</a>や各社の公式発表でご確認ください。状況は変わることがあります。出発前に公式発表もご確認ください。</p>';
 }
 
 function renderBroadcasts() {
   const items = DATA.broadcasts.slice(0, 5);
   $('#broadcastBody').innerHTML = items.map((b, i) =>
-    '<div class="bc"><div><span class="when">' + b.date.slice(5).replace('-', '/') + ' ' + b.time + '</span> ' + b.title + '</div>' +
-    '<div class="small bcbody" id="bc' + i + '" hidden>' + b.body + '</div>' +
+    '<div class="bc"><div><span class="when">' + b.date.slice(5).replace('-', '/') + ' ' + esc(b.time) + '</span> ' + esc(b.title) + '</div>' +
+    '<div class="small bcbody" id="bc' + i + '" hidden>' + esc(b.body) + '</div>' +
     '<button class="linkbtn" data-bc="' + i + '">本文を読む</button></div>').join('') ||
     '<p class="small">まだ蓄積がありません。</p>';
   document.querySelectorAll('[data-bc]').forEach(btn => btn.addEventListener('click', () => {
@@ -274,15 +327,26 @@ function renderBroadcasts() {
   }));
 }
 
+function normText(s) {
+  // 全角・半角をそろえ（NFKC）、ひらがなをカタカナに寄せて表記ゆれを吸収する
+  return String(s || '').normalize('NFKC')
+    .replace(/[ぁ-ゖ]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60)).toLowerCase();
+}
+const SEARCH_ALIASES = { 'スマホ': '携帯電話', 'スマートフォン': '携帯電話', 'ケータイ': '携帯電話' };
 function doSearch() {
-  const q = $('#searchInput').value.trim();
+  const q0 = $('#searchInput').value.trim();
   const box = $('#searchResults');
-  if (!q) { box.innerHTML = '<p class="small">品目名を入力してください。</p>'; return; }
-  const hits = DATA.items.filter(it => (it.name + it.variant).includes(q)).slice(0, 30);
+  if (!q0) { box.innerHTML = '<p class="small">品目名を入力してください。</p>'; return; }
+  const q = normText(q0);
+  const alias = SEARCH_ALIASES[q] || '';
+  const hits = DATA.items.filter(it => {
+    const hay = normText(it.name + it.variant + (it.reading || ''));
+    return hay.includes(q) || (alias && hay.includes(normText(alias)));
+  }).slice(0, 30);
   const home = hamletOf(settings && settings.home);
   const today = new Date();
   if (!hits.length) {
-    box.innerHTML = '<p>「' + q + '」は一覧表に見つかりませんでした。環境課（0959-53-1161）へお問い合わせください。</p>';
+    box.innerHTML = '<p>「' + esc(q0) + '」は一覧表に見つかりませんでした。環境課（0959-53-1161）へお問い合わせください。</p>';
     return;
   }
   box.innerHTML = hits.map(it => {
@@ -296,11 +360,11 @@ function doSearch() {
           nd.slice(5).replace('-', '/') + (n === 0 ? '（今日）' : n === 1 ? '（明日）' : '（あと' + n + '日）') + '</strong></div>';
       }
     }
-    return '<div class="result"><div class="rname">' + it.name +
-      (it.variant ? '（' + it.variant + '）' : '') + '</div>' +
-      '<span class="tag cat" style="background:' + (TABLE_COLORS[it.table_category] || '#616161') + '">' + it.table_category + '</span>' +
-      (it.bag ? '<div class="small">出し方：' + it.bag + '</div>' : '') +
-      (it.note ? '<div class="small">注意：' + it.note + '</div>' : '') + next + '</div>';
+    return '<div class="result"><div class="rname">' + esc(it.name) +
+      (it.variant ? '（' + esc(it.variant) + '）' : '') + '</div>' +
+      '<span class="tag cat" style="background:' + (TABLE_COLORS[it.table_category] || '#616161') + '">' + esc(it.table_category) + '</span>' +
+      (it.bag ? '<div class="small">出し方：' + esc(it.bag) + '</div>' : '') +
+      (it.note ? '<div class="small">注意：' + esc(it.note) + '</div>' : '') + next + '</div>';
   }).join('');
 }
 
@@ -375,7 +439,7 @@ function renderAll() {
   renderFerries();
 }
 
-fetch('data.json').then(r => r.json()).then(data => {
+fetch('data.json').then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.json(); }).then(data => {
   DATA = data;
   $('#genAt').textContent = data.meta.generated_at;
   renderBroadcasts();
@@ -390,4 +454,11 @@ fetch('data.json').then(r => r.json()).then(data => {
     if (!p.hidden) { p.innerHTML = settingsFormHTML(); bindSettings(p); }
   });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+}).catch(() => {
+  $('#dateLabel').textContent = 'データの読み込みに失敗しました';
+  const msg = '<p class="small">データを読み込めませんでした。通信状態を確認して、ページを再読み込みしてください。</p>';
+  $('#gomiToday').innerHTML = msg;
+  $('#clinicBody').innerHTML = msg;
+  $('#ferryBody').innerHTML = msg;
+  $('#broadcastBody').innerHTML = msg;
 });
